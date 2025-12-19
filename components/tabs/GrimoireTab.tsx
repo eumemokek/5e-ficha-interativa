@@ -14,9 +14,10 @@ interface GrimoireTabProps {
     setModalType: (type: string) => void;
     setEditingSpell: (spell: Spell | null) => void;
     profBonus: number;
+    onDeleteSpell: (spellId: string) => void;
 }
 
-const GrimoireTab: React.FC<GrimoireTabProps> = ({ char, charClassDef, updateCharacter, setModalType, setEditingSpell, profBonus }) => {
+const GrimoireTab: React.FC<GrimoireTabProps> = ({ char, charClassDef, updateCharacter, setModalType, setEditingSpell, profBonus, onDeleteSpell }) => {
     const [activeGrimoireTab, setActiveGrimoireTab] = useState<number>(0);
 
     const maxPrepared = useMemo(() => getMaxPreparedSpells(char), [char]);
@@ -60,13 +61,6 @@ const GrimoireTab: React.FC<GrimoireTabProps> = ({ char, charClassDef, updateCha
             } else {
                  updateCharacter({ spells: char.spells.map(s => s.id === spell.id ? {...s, prepared: !s.prepared} : s) });
             }
-        }
-    };
-
-    const handleDeleteSpell = (spellId: string, event: React.MouseEvent) => {
-        event.stopPropagation();
-        if(window.confirm('Tem certeza que deseja esquecer esta magia?')) {
-            updateCharacter({ spells: char.spells.filter(s => s.id !== spellId) });
         }
     };
 
@@ -154,7 +148,7 @@ const GrimoireTab: React.FC<GrimoireTabProps> = ({ char, charClassDef, updateCha
                                 {/* BOTÃO DE EXCLUIR CORRIGIDO E EVIDENTE */}
                                 {!spell.origin && !spell.id.startsWith('virtual-') && (
                                     <button 
-                                        onClick={(e) => handleDeleteSpell(spell.id, e)} 
+                                        onClick={(e) => { e.stopPropagation(); onDeleteSpell(spell.id); }} 
                                         className="p-1.5 text-grim-muted hover:text-grim-danger transition-colors bg-black/40 hover:bg-black/80 rounded-full" 
                                         title="Esquecer Magia"
                                     >

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Character, Item } from '../../types';
 import { generateId } from '../../utils';
-import { Search, Plus, Shield, Minus, ShieldCheck, Trash2, Box } from 'lucide-react';
+import { Search, Plus, Shield, Minus, ShieldCheck, Trash2, Box, Edit3 } from 'lucide-react';
 import Silhouette from '../Silhouette';
 
 interface InventoryTabProps {
@@ -10,9 +10,10 @@ interface InventoryTabProps {
     updateCharacter: (updates: Partial<Character>) => void;
     setModalType: (type: string) => void;
     setEditingItem: (item: Item | null) => void;
+    onDeleteItem: (itemId: string) => void;
 }
 
-const InventoryTab: React.FC<InventoryTabProps> = ({ char, updateCharacter, setModalType, setEditingItem }) => {
+const InventoryTab: React.FC<InventoryTabProps> = ({ char, updateCharacter, setModalType, setEditingItem, onDeleteItem }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     // Toggle equip status with SLOT LOGIC
@@ -68,13 +69,11 @@ const InventoryTab: React.FC<InventoryTabProps> = ({ char, updateCharacter, setM
         updateCharacter({ inventory: newInventory });
     };
 
-    const handleDeleteItem = (itemId: string, e: React.MouseEvent) => {
+    const handleEditClick = (item: Item, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (window.confirm('Tem certeza que deseja remover este item permanentemente?')) {
-            const newInventory = char.inventory.filter(x => x.id !== itemId);
-            updateCharacter({ inventory: newInventory });
-        }
-    };
+        setEditingItem(item);
+        setModalType('item-editor');
+    }
 
     return (
         <div className="h-full glass-panel rounded-xl flex flex-col">
@@ -122,7 +121,10 @@ const InventoryTab: React.FC<InventoryTabProps> = ({ char, updateCharacter, setM
                                                 <div className="text-xs text-grim-muted uppercase">{item.type}</div>
                                             </div>
                                         </div>
-                                        <button onClick={(e) => toggleEquip(item, e)} className="text-grim-muted hover:text-white p-2 cursor-pointer z-20 relative" title="Desequipar"><Minus size={18}/></button>
+                                        <div className="flex gap-2 z-20 relative">
+                                            <button onClick={(e) => handleEditClick(item, e)} className="text-grim-muted hover:text-white p-2 cursor-pointer" title="Editar"><Edit3 size={16}/></button>
+                                            <button onClick={(e) => toggleEquip(item, e)} className="text-grim-muted hover:text-white p-2 cursor-pointer" title="Desequipar"><Minus size={18}/></button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -152,10 +154,11 @@ const InventoryTab: React.FC<InventoryTabProps> = ({ char, updateCharacter, setM
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-end gap-2 w-20 relative z-20">
+                                    <div className="flex justify-end gap-2 w-auto relative z-20">
+                                        <button onClick={(e) => handleEditClick(item, e)} className="p-2 text-grim-muted hover:text-white cursor-pointer" title="Editar"><Edit3 size={16}/></button>
                                         {/* Todos os itens podem ser equipados/vestidos */}
                                         <button onClick={(e) => toggleEquip(item, e)} className="p-2 text-grim-muted hover:text-grim-gold cursor-pointer" title="Equipar / Usar"><ShieldCheck size={16}/></button>
-                                        <button onClick={(e) => handleDeleteItem(item.id, e)} className="p-2 text-grim-muted hover:text-grim-danger cursor-pointer" title="Remover"><Trash2 size={16}/></button>
+                                        <button onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }} className="p-2 text-grim-muted hover:text-grim-danger cursor-pointer" title="Remover"><Trash2 size={16}/></button>
                                     </div>
                                 </div>
                             ))}
