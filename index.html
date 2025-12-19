@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grimório Digital 5e</title>
+    <!-- Mantemos o Tailwind via CDN para preservar suas configurações visuais personalizadas sem precisar de config postcss extra -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              grim: {
+                bg: '#09090b',        // Zinc 950 (Fundo Absoluto)
+                panel: '#18181b',     // Zinc 900 (Painéis)
+                surface: '#27272a',   // Zinc 800 (Cards)
+                border: '#3f3f46',    // Zinc 700 (Bordas Sutis)
+                gold: '#fbbf24',      // Amber 400 (Ouro Brilhante)
+                goldDim: '#b45309',   // Amber 700 (Ouro Envelhecido)
+                text: '#e4e4e7',      // Zinc 200 (Texto Leitura)
+                muted: '#a1a1aa',     // Zinc 400 (Texto Secundário)
+                accent: '#71717a',    // Zinc 500 (Detalhes)
+                danger: '#ef4444',    // Red 500
+                success: '#22c55e',   // Green 500
+                magic: '#8b5cf6',     // Violet 500
+              }
+            },
+            fontFamily: {
+              sans: ['Lato', 'sans-serif'],
+              serif: ['Cinzel', 'serif'], 
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            fontSize: {
+              'xxs': '0.65rem',
+              'xs': '0.8rem',     // Aumentado
+              'sm': '0.925rem',   // Aumentado
+              'base': '1.05rem',  // Aumentado
+              'lg': '1.15rem',
+              'xl': '1.35rem',
+              '2xl': '1.65rem',
+              '3xl': '2.15rem',
+            },
+            boxShadow: {
+                'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                'glow': '0 0 15px rgba(251, 191, 36, 0.1)',
+                'glow-strong': '0 0 20px rgba(251, 191, 36, 0.3)',
+            },
+            backgroundImage: {
+                'dark-texture': "url('https://www.transparenttextures.com/patterns/stardust.png')",
+                'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Lato:wght@300;400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+      
+      body {
+        background-color: #09090b;
+        color: #e4e4e7;
+        font-family: 'Lato', sans-serif;
+        overflow: hidden;
+        font-size: 16px; /* Base maior */
+      }
+      
+      /* Glassmorphism Utilities */
+      .glass-panel {
+        background: rgba(24, 24, 27, 0.65);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .glass-card {
+        background: rgba(39, 39, 42, 0.4);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        transition: all 0.2s ease-in-out;
+      }
+      
+      .glass-card:hover {
+        background: rgba(39, 39, 42, 0.7);
+        border-color: rgba(251, 191, 36, 0.3);
+        transform: translateY(-2px);
+      }
+
+      /* Custom Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px; /* Mais largo para facilitar clique */
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0,0,0,0.2);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #3f3f46;
+        border-radius: 10px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #fbbf24;
+      }
+
+      .font-cinzel { font-family: 'Cinzel', serif; }
+      
+      /* Inputs Modernos */
+      input, select, textarea {
+        background: rgba(0, 0, 0, 0.4) !important;
+        border: 1px solid #3f3f46 !important; 
+        color: #e4e4e7 !important;
+        border-radius: 6px !important;
+        padding: 8px !important; /* Mais padding */
+      }
+      input:focus, select:focus, textarea:focus {
+        border-color: #fbbf24 !important;
+        box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3) !important;
+        outline: none !important;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
