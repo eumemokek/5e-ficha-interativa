@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Character, Attribute, SkillName } from '../../types';
 import { createNewCharacter, downloadJSON, applyFeatureOption, formatModifier } from '../../utils';
 import { CLASSES, RACES, BACKGROUNDS, FEATURE_OPTIONS } from '../../data/rules';
-import { UserPlus, Download, Upload, Shield, Zap, Heart, Brain, Crown, Eye, Wind, Swords, BookOpen, Scroll, Sparkles, Minus, Plus } from 'lucide-react';
+import { UserPlus, Download, Upload, Shield, Zap, Heart, Brain, Crown, Eye, Wind, Swords, BookOpen, Scroll, Sparkles, Minus, Plus, CheckCircle2, Circle } from 'lucide-react';
 import Modal from '../Modal';
 
 interface CharacterModalsProps {
@@ -31,18 +31,22 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
         [Attribute.INT]: 8, [Attribute.WIS]: 8, [Attribute.CHA]: 8
     });
     const [selectedCreationSkills, setSelectedCreationSkills] = useState<SkillName[]>([]);
-    const [selectedCreationFeatures, setSelectedCreationFeatures] = useState<Record<string, string>>({});
     const [floatingBonuses, setFloatingBonuses] = useState<Attribute[]>([]);
+
+    // --- States para Seleção de Features (Kenku, etc) ---
+    const [multiFeatureSelections, setMultiFeatureSelections] = useState<string[]>([]);
 
     // Reset ao abrir
     useEffect(() => {
         if (modalType === 'new-character') {
             setAttrScores({ [Attribute.STR]: 8, [Attribute.DEX]: 8, [Attribute.CON]: 8, [Attribute.INT]: 8, [Attribute.WIS]: 8, [Attribute.CHA]: 8 });
             setSelectedCreationSkills([]);
-            setSelectedCreationFeatures({});
             setFloatingBonuses([]);
             setCreationStep(0);
             setNewCharData({ name: '', race: '', class: '', background: '' });
+        }
+        if (modalType === 'feature-selection') {
+            setMultiFeatureSelections([]);
         }
     }, [modalType]);
 
@@ -51,11 +55,33 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
         if (modalType === 'new-character' && creationStep === 1 && !newCharData.race) setNewCharData(prev => ({...prev, race: Object.keys(RACES)[0]}));
         if (modalType === 'new-character' && creationStep === 2 && !newCharData.background) setNewCharData(prev => ({...prev, background: Object.keys(BACKGROUNDS)[0]}));
         if (modalType === 'new-character' && creationStep === 3 && !newCharData.class) setNewCharData(prev => ({...prev, class: Object.keys(CLASSES)[0]}));
+        
+        // Reset skills ao mudar de classe
+        if (modalType === 'new-character' && creationStep === 3) {
+            setSelectedCreationSkills([]);
+        }
     }, [creationStep, modalType]);
 
     const handleCreateNewCharacter = () => {
         if (!newCharData.name || !newCharData.race || !newCharData.class || !newCharData.background) { alert("Preencha todas as etapas."); return; }
-        const newChar = createNewCharacter(newCharData.race, newCharData.class, newCharData.background, newCharData.name, attrScores, selectedCreationSkills, selectedCreationFeatures);
+        
+        // Verifica se selecionou as perícias necessárias
+        const classDef = CLASSES[newCharData.class];
+        if (selectedCreationSkills.length < classDef.proficiencies.skillsCount) {
+            alert(`Por favor, selecione ${classDef.proficiencies.skillsCount} perícias na etapa de Perícias.`);
+            return;
+        }
+
+        const newChar = createNewCharacter(
+            newCharData.race, 
+            newCharData.class, 
+            newCharData.background, 
+            newCharData.name, 
+            attrScores, 
+            selectedCreationSkills, 
+            {} // Initial Features
+        );
+        
         if (floatingBonuses.length > 0) floatingBonuses.forEach(attr => newChar.attributes[attr] += 1);
         setCharacters(prev => [...prev, newChar]);
         setActiveCharId(newChar.id);
@@ -64,24 +90,41 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
 
     const handleExportCharacter = () => downloadJSON(char, `${char.name.replace(/\s+/g, '_')}_ficha.json`);
 
-    const handleApplyFeature = (optionName: string) => {
-        if (!selectedFeatureKey) return;
-        setCharacters(prev => prev.map(c => {
-            if (c.id === char.id) { return applyFeatureOption(c, selectedFeatureKey, optionName); }
-            return c;
-        }));
-        setModalType('none');
-        setSelectedFeatureKey(null);
+    // Lógica para toggle de seleção múltipla no modal de features
+    const toggleFeatureSelection = (optionName: string, limit: number) => {
+        setMultiFeatureSelections(prev => {
+            if (prev.includes(optionName)) {
+                return prev.filter(p => p !== optionName);
+            } else {
+                if (prev.length >= limit) return prev; // Limite atingido
+                return [...prev, optionName];
+            }
+        });
     };
 
-    // Componentes Auxiliares de Visualização
-    const StatPreview = ({ label, value, bonus = 0 }: { label: string, value: number, bonus?: number }) => (
-        <div className="bg-black/40 p-2 rounded border border-white/5 flex flex-col items-center">
-            <span className="text-[10px] text-grim-muted uppercase font-bold">{label.substring(0,3)}</span>
-            <div className="text-lg font-bold font-mono flex items-center">
-                {value}
-                {bonus > 0 && <span className="text-grim-gold ml-1">+{bonus}</span>}
-            </div>
+    const handleConfirmFeatureSelections = () => {
+        if (!selectedFeatureKey) return;
+        
+        // Aplica todas as seleções sequencialmente
+        let updatedChar = { ...char };
+        multiFeatureSelections.forEach(optName => {
+            updatedChar = applyFeatureOption(updatedChar, selectedFeatureKey, optName);
+        });
+
+        setCharacters(prev => prev.map(c => c.id === char.id ? updatedChar : c));
+        setModalType('none');
+        setSelectedFeatureKey(null);
+        setMultiFeatureSelections([]);
+    };
+
+    // Componentes Auxiliares
+    const SkillToggle = ({ skill, selected, locked, onClick }: { skill: SkillName, selected: boolean, locked: boolean, onClick: () => void }) => (
+        <div 
+            onClick={() => !locked && onClick()} 
+            className={`flex items-center justify-between p-3 rounded border transition-all ${locked ? 'bg-white/5 border-white/5 opacity-50 cursor-not-allowed' : selected ? 'bg-grim-gold/20 border-grim-gold cursor-pointer' : 'bg-black/40 border-white/10 hover:bg-white/5 cursor-pointer'}`}
+        >
+            <span className={`text-sm font-bold ${selected || locked ? 'text-white' : 'text-grim-muted'}`}>{skill}</span>
+            {locked ? <CheckCircle2 size={16} className="text-grim-muted"/> : selected ? <CheckCircle2 size={16} className="text-grim-gold"/> : <Circle size={16} className="text-grim-border"/>}
         </div>
     );
 
@@ -103,15 +146,15 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
             <Modal isOpen={modalType === 'new-character'} onClose={() => setModalType('none')} title="Criação de Personagem">
                 <div className="flex flex-col h-[70vh]">
                     {/* Stepper */}
-                    <div className="flex justify-between mb-6 px-4">
-                        {['Básico', 'Raça', 'Antecedente', 'Classe', 'Atributos'].map((step, i) => (
-                            <div key={i} className={`text-xs font-bold uppercase tracking-widest ${creationStep === i ? 'text-grim-gold' : creationStep > i ? 'text-white' : 'text-grim-muted/30'}`}>
+                    <div className="flex justify-between mb-6 px-4 shrink-0">
+                        {['Básico', 'Raça', 'Antecedente', 'Classe', 'Perícias', 'Atributos'].map((step, i) => (
+                            <div key={i} className={`text-[10px] font-bold uppercase tracking-widest ${creationStep === i ? 'text-grim-gold' : creationStep > i ? 'text-white' : 'text-grim-muted/30'}`}>
                                 {i + 1}. {step}
                             </div>
                         ))}
                     </div>
 
-                    <div className="flex-1 overflow-hidden flex flex-col">
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                         {/* STEP 0: NOME */}
                         {creationStep === 0 && (
                             <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -182,7 +225,7 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
                                             
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="bg-black/20 p-4 rounded border border-white/5">
-                                                    <h4 className="text-grim-gold font-bold text-sm uppercase mb-2 flex items-center gap-2"><Brain size={14}/> Perícias</h4>
+                                                    <h4 className="text-grim-gold font-bold text-sm uppercase mb-2 flex items-center gap-2"><Brain size={14}/> Perícias (Proficiência)</h4>
                                                     <div className="flex flex-wrap gap-2">
                                                         {BACKGROUNDS[newCharData.background].skills.map(skill => (
                                                             <span key={skill} className="bg-white/10 text-xs px-2 py-1 rounded">{skill}</span>
@@ -269,8 +312,59 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
                             </div>
                         )}
 
-                        {/* STEP 4: ATRIBUTOS */}
+                        {/* STEP 4: PERÍCIAS (NOVO) */}
                         {creationStep === 4 && (
+                            <div className="flex flex-col gap-6 h-full p-2">
+                                {newCharData.class && CLASSES[newCharData.class] && (
+                                    <>
+                                        <div className="text-center mb-2">
+                                            <h3 className="text-2xl font-cinzel text-grim-gold">Escolha suas Perícias de Classe</h3>
+                                            <p className="text-sm text-grim-muted mt-1">
+                                                Selecione <span className="text-white font-bold">{CLASSES[newCharData.class].proficiencies.skillsCount}</span> perícias da lista abaixo.
+                                            </p>
+                                            <p className="text-xs text-grim-muted/60 mt-1">Perícias de Antecedente já estão inclusas e marcadas.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3 overflow-y-auto custom-scrollbar flex-1 pb-4">
+                                            {CLASSES[newCharData.class].proficiencies.skillsList.map(skill => {
+                                                // Verifica se já tem pelo background
+                                                const hasFromBg = BACKGROUNDS[newCharData.background]?.skills.includes(skill);
+                                                const isSelected = selectedCreationSkills.includes(skill);
+                                                const limitReached = selectedCreationSkills.length >= CLASSES[newCharData.class].proficiencies.skillsCount;
+
+                                                return (
+                                                    <SkillToggle 
+                                                        key={skill} 
+                                                        skill={skill} 
+                                                        selected={isSelected || hasFromBg} 
+                                                        locked={hasFromBg}
+                                                        onClick={() => {
+                                                            if (hasFromBg) return;
+                                                            if (isSelected) {
+                                                                setSelectedCreationSkills(prev => prev.filter(s => s !== skill));
+                                                            } else {
+                                                                if (!limitReached) {
+                                                                    setSelectedCreationSkills(prev => [...prev, skill]);
+                                                                }
+                                                            }
+                                                        }} 
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        <div className="flex justify-center shrink-0">
+                                            <div className="bg-black/40 px-6 py-2 rounded-full border border-white/10 text-xs uppercase font-bold tracking-widest">
+                                                Selecionadas: <span className={selectedCreationSkills.length === CLASSES[newCharData.class].proficiencies.skillsCount ? 'text-grim-gold' : 'text-white'}>{selectedCreationSkills.length}</span> / {CLASSES[newCharData.class].proficiencies.skillsCount}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                        {/* STEP 5: ATRIBUTOS */}
+                        {creationStep === 5 && (
                             <div className="flex flex-col items-center justify-center h-full gap-8">
                                 <h3 className="text-xl font-cinzel text-grim-gold">Defina seus Atributos</h3>
                                 <div className="grid grid-cols-3 gap-6">
@@ -305,7 +399,7 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
                     {/* Navigation Footer */}
                     <div className="flex justify-between mt-6 pt-4 border-t border-white/10 shrink-0">
                         <button onClick={() => setCreationStep(p => Math.max(0, p - 1))} disabled={creationStep === 0} className="px-6 py-3 bg-black border border-white/10 text-white font-bold uppercase rounded disabled:opacity-50 hover:bg-white/5 transition-all">Voltar</button>
-                        {creationStep < 4 ? (
+                        {creationStep < 5 ? (
                             <button onClick={() => setCreationStep(p => p + 1)} className="px-6 py-3 bg-grim-gold text-black font-bold uppercase rounded hover:bg-white transition-all shadow-glow">Próximo</button>
                         ) : (
                             <button onClick={handleCreateNewCharacter} className="px-8 py-3 bg-grim-gold text-black font-black uppercase rounded hover:bg-white transition-all shadow-glow flex items-center gap-2"><UserPlus size={18}/> Finalizar Criação</button>
@@ -314,9 +408,53 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
                 </div>
             </Modal>
 
-            {/* FEATURE SELECTION */}
-            <Modal isOpen={modalType === 'feature-selection'} onClose={() => { setModalType('none'); setSelectedFeatureKey(null); }} title={selectedFeatureKey || "Opção"}>
-                <div className="flex flex-col gap-3">{selectedFeatureKey && FEATURE_OPTIONS[selectedFeatureKey] ? (FEATURE_OPTIONS[selectedFeatureKey].options.map(opt => (<div key={opt.name} onClick={() => handleApplyFeature(opt.name)} className="bg-black/30 border border-white/10 p-4 rounded cursor-pointer hover:border-grim-gold transition-all group"><h4 className="font-bold text-white group-hover:text-grim-gold transition-colors">{opt.name}</h4><p className="text-xs text-grim-muted mt-1">{opt.description}</p></div>))) : (<div>Nenhuma opção.</div>)}</div>
+            {/* FEATURE SELECTION (CORRIGIDO PARA MULTI-SELEÇÃO) */}
+            <Modal isOpen={modalType === 'feature-selection'} onClose={() => { setModalType('none'); setSelectedFeatureKey(null); setMultiFeatureSelections([]); }} title={selectedFeatureKey || "Opção"}>
+                <div className="flex flex-col gap-4">
+                    {selectedFeatureKey && FEATURE_OPTIONS[selectedFeatureKey] ? (
+                        <>
+                            <div className="text-sm text-grim-muted mb-2 text-center bg-black/20 p-2 rounded">
+                                Selecione <span className="text-white font-bold">{FEATURE_OPTIONS[selectedFeatureKey].selectionLimit || 1}</span> opções.
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {FEATURE_OPTIONS[selectedFeatureKey].options.map(opt => {
+                                    const isSelected = multiFeatureSelections.includes(opt.name);
+                                    const limit = FEATURE_OPTIONS[selectedFeatureKey!].selectionLimit || 1;
+                                    const limitReached = multiFeatureSelections.length >= limit;
+                                    
+                                    return (
+                                        <div 
+                                            key={opt.name} 
+                                            onClick={() => toggleFeatureSelection(opt.name, limit)} 
+                                            className={`bg-black/30 border p-4 rounded cursor-pointer transition-all group flex justify-between items-center ${isSelected ? 'border-grim-gold bg-grim-gold/5' : 'border-white/10 hover:border-white/30'}`}
+                                        >
+                                            <div className="flex-1 pr-4">
+                                                <h4 className={`font-bold transition-colors ${isSelected ? 'text-grim-gold' : 'text-white'}`}>{opt.name}</h4>
+                                                <p className="text-xs text-grim-muted mt-1">{opt.description}</p>
+                                            </div>
+                                            <div className="shrink-0">
+                                                {isSelected ? (
+                                                    <CheckCircle2 size={20} className="text-grim-gold" />
+                                                ) : (
+                                                    <Circle size={20} className={`text-grim-border ${limitReached ? 'opacity-30' : ''}`} />
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <button 
+                                onClick={handleConfirmFeatureSelections}
+                                disabled={multiFeatureSelections.length === 0}
+                                className="w-full py-4 mt-4 bg-grim-gold text-black font-bold uppercase rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white transition-all shadow-glow"
+                            >
+                                Confirmar Escolhas ({multiFeatureSelections.length}/{FEATURE_OPTIONS[selectedFeatureKey].selectionLimit || 1})
+                            </button>
+                        </>
+                    ) : (
+                        <div>Nenhuma opção disponível.</div>
+                    )}
+                </div>
             </Modal>
         </>
     );
