@@ -5,6 +5,17 @@ import { getFeatureOptions, formatModifier, calculateResourceMax, getModifier } 
 import { Sparkles, ChevronUp, ChevronDown, AlertCircle, RefreshCw, Swords } from 'lucide-react';
 import { CLASSES } from '../data/rules';
 
+// --- Helper para cores de fontes ---
+export const getSourceStyle = (source: string) => {
+    switch (source) {
+        case 'Classe': return { text: 'text-grim-gold', border: 'border-grim-gold/30', bg: 'bg-grim-gold/5' };
+        case 'Raça': return { text: 'text-emerald-400', border: 'border-emerald-400/30', bg: 'bg-emerald-400/5' };
+        case 'Antecedente': return { text: 'text-purple-400', border: 'border-purple-400/30', bg: 'bg-purple-400/5' };
+        case 'Talento': return { text: 'text-cyan-400', border: 'border-cyan-400/30', bg: 'bg-cyan-400/5' };
+        default: return { text: 'text-white', border: 'border-white/10', bg: 'bg-white/5' };
+    }
+};
+
 // --- ClassResourceCard ---
 export const ClassResourceCard: React.FC<{ character: Character, updateChar: (updates: Partial<Character>) => void }> = ({ character, updateChar }) => {
     const baseClass = character.class.split(' ')[0];
@@ -43,32 +54,38 @@ export const ClassResourceCard: React.FC<{ character: Character, updateChar: (up
 export const FeatureList: React.FC<{ features: Feature[], level: number, onSelect: (name: string) => void, onReset: (id: string) => void }> = ({ features, level, onSelect, onReset }) => {
     const availableFeatures = features.filter(f => !f.level || f.level <= level);
     if (availableFeatures.length === 0) return null;
-    const grouped = { 'Raça': availableFeatures.filter(f => f.source === 'Raça'), 'Classe': availableFeatures.filter(f => f.source === 'Classe'), 'Antecedente': availableFeatures.filter(f => f.source === 'Antecedente'), 'Outros': availableFeatures.filter(f => !['Raça', 'Classe', 'Antecedente'].includes(f.source)) };
+    
+    // Ordena por nível e depois por nome
+    const sortedFeatures = [...availableFeatures].sort((a, b) => {
+        if ((a.level || 0) !== (b.level || 0)) return (a.level || 0) - (b.level || 0);
+        return a.name.localeCompare(b.name);
+    });
+
     return (
-        <div className="flex flex-col gap-4">
-            {Object.entries(grouped).map(([category, items]) => {
-                if (items.length === 0) return null;
+        <div className="flex flex-col gap-2">
+            {sortedFeatures.map(f => {
+                const canSelect = !!getFeatureOptions(f.name);
+                const isChosen = f.origin || f.name.includes(':');
+                const style = getSourceStyle(f.source);
+                
                 return (
-                    <div key={category}>
-                        <h4 className="text-xs uppercase font-bold text-grim-muted tracking-widest mb-2 border-b border-white/5 pb-1 flex items-center gap-2">{category}</h4>
-                        <div className="flex flex-col gap-2">
-                            {items.map(f => {
-                                const canSelect = !!getFeatureOptions(f.name);
-                                const isChosen = f.origin || f.name.includes(':');
-                                return (
-                                    <div key={f.id} onClick={() => { if (canSelect && !isChosen) onSelect(f.name); }} className={`p-3 rounded border relative transition-all group ${canSelect && !isChosen ? 'bg-grim-gold/5 border-grim-gold/30 hover:bg-grim-gold/10 cursor-pointer shadow-glow animate-pulse-slow' : 'bg-black/30 border-white/5'}`}>
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h5 className={`font-bold text-sm flex items-center gap-2 ${canSelect && !isChosen ? 'text-grim-gold' : 'text-white'}`}>
-                                                {f.name}
-                                                {canSelect && !isChosen && <AlertCircle size={12} className="text-grim-gold animate-bounce" />}
-                                            </h5>
-                                            {isChosen && f.name.includes(':') && <button onClick={(e) => { e.stopPropagation(); onReset(f.id); }} className="text-grim-muted hover:text-grim-danger p-1 transition-colors" title="Redefinir Escolha"><RefreshCw size={12} /></button>}
-                                        </div>
-                                        <p className="text-xs text-grim-muted leading-relaxed">{f.description}</p>
-                                    </div>
-                                );
-                            })}
+                    <div 
+                        key={f.id} 
+                        onClick={() => { if (canSelect && !isChosen) onSelect(f.name); }} 
+                        className={`p-3 rounded border relative transition-all group ${canSelect && !isChosen ? 'bg-grim-gold/5 border-grim-gold/50 hover:bg-grim-gold/10 cursor-pointer shadow-glow animate-pulse-slow' : 'bg-black/30 border-white/5'}`}
+                    >
+                        <div className="flex justify-between items-start mb-1">
+                            <h5 className={`font-bold text-sm flex items-center gap-2 ${style.text}`}>
+                                {f.name}
+                                {canSelect && !isChosen && <AlertCircle size={12} className="text-grim-gold animate-bounce" />}
+                            </h5>
+                            <div className="flex items-center gap-2">
+                                {f.level && <span className="text-[9px] font-mono text-grim-muted bg-black/40 px-1 rounded">Lvl {f.level}</span>}
+                                {isChosen && f.name.includes(':') && <button onClick={(e) => { e.stopPropagation(); onReset(f.id); }} className="text-grim-muted hover:text-grim-danger p-1 transition-colors" title="Redefinir Escolha"><RefreshCw size={12} /></button>}
+                            </div>
                         </div>
+                        <p className="text-xs text-grim-muted leading-relaxed">{f.description}</p>
+                        <div className={`mt-2 text-[9px] uppercase tracking-widest font-bold opacity-50 ${style.text}`}>{f.source}</div>
                     </div>
                 );
             })}

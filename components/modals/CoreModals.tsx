@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { Character, Attribute } from '../../types';
+import { Character, Attribute, Feature } from '../../types';
 import { getCharacterStats, getStatBreakdown } from '../../utils';
 import { CLASSES } from '../../data/rules';
 import Modal from '../Modal';
-import { AlertCircle, Sunrise, Sunset, AlertTriangle } from 'lucide-react';
+import { AlertCircle, Sunrise, Sunset, AlertTriangle, Sparkles, Heart } from 'lucide-react';
 
 interface CoreModalsProps {
     modalType: string;
@@ -15,10 +15,11 @@ interface CoreModalsProps {
     deleteTarget: { type: string, id: string } | null;
     confirmDelete: () => void;
     setDeleteTarget: (target: any) => void;
+    levelUpSummary?: { level: number, hpGain: number, newFeatures: Feature[] } | null;
 }
 
 export const CoreModals: React.FC<CoreModalsProps> = ({ 
-    modalType, setModalType, char, updateCharacter, derivedStats, deleteTarget, confirmDelete, setDeleteTarget 
+    modalType, setModalType, char, updateCharacter, derivedStats, deleteTarget, confirmDelete, setDeleteTarget, levelUpSummary 
 }) => {
     // Estado local para HP
     const [hpActionType, setHpActionType] = useState<'damage' | 'heal' | 'temp' | 'max'>('damage');
@@ -149,6 +150,53 @@ export const CoreModals: React.FC<CoreModalsProps> = ({
                         <button onClick={confirmDelete} className="flex-1 py-3 bg-grim-danger text-white font-bold uppercase rounded hover:bg-red-600">Confirmar</button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* LEVEL UP SUMMARY */}
+            <Modal isOpen={modalType === 'level-up-summary'} onClose={() => setModalType('none')} title="Nível Alcançado!">
+                {levelUpSummary && (
+                    <div className="flex flex-col gap-6 text-center animate-in fade-in duration-500">
+                        <div className="flex justify-center">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-grim-gold blur-xl opacity-30 rounded-full animate-pulse-slow"></div>
+                                <div className="w-24 h-24 bg-gradient-to-br from-grim-panel to-black border-2 border-grim-gold rounded-full flex flex-col items-center justify-center relative z-10 shadow-glow-strong">
+                                    <span className="text-[10px] uppercase text-grim-gold font-bold tracking-widest">Nível</span>
+                                    <span className="text-5xl font-cinzel font-black text-white">{levelUpSummary.level}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 bg-black/40 p-4 rounded border border-white/10">
+                            <div className="flex items-center gap-3 p-3 bg-grim-danger/10 border border-grim-danger/30 rounded">
+                                <Heart className="text-grim-danger" size={24} />
+                                <div className="text-left">
+                                    <span className="text-xs uppercase font-bold text-grim-muted block">Vida Máxima</span>
+                                    <span className="text-lg font-bold text-white">+{levelUpSummary.hpGain} HP</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {levelUpSummary.newFeatures.length > 0 && (
+                            <div className="text-left">
+                                <h4 className="text-sm font-bold text-grim-gold uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <Sparkles size={16}/> Novas Habilidades
+                                </h4>
+                                <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                    {levelUpSummary.newFeatures.map((feat, i) => (
+                                        <div key={i} className="bg-black/30 border-l-2 border-grim-gold p-3 rounded">
+                                            <div className="font-bold text-white text-sm mb-1">{feat.name}</div>
+                                            <div className="text-xs text-grim-muted leading-relaxed">{feat.description}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <button onClick={() => setModalType('none')} className="w-full py-4 bg-grim-gold text-black font-black uppercase rounded hover:bg-white transition-all shadow-glow mt-2">
+                            Continuar Jornada
+                        </button>
+                    </div>
+                )}
             </Modal>
         </>
     );

@@ -14,13 +14,25 @@ interface CharacterModalsProps {
     activeCharId: string;
     setActiveCharId: (id: string) => void;
     setCharacters: React.Dispatch<React.SetStateAction<Character[]>>;
+    onSaveNewCharacter: (char: Character) => void;
     selectedFeatureKey: string | null;
     setSelectedFeatureKey: (key: string | null) => void;
     handleImportCharacter: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
+// Componente Auxiliar movido para fora para evitar redefinição e problemas de tipagem com key
+const SkillToggle: React.FC<{ skill: SkillName, selected: boolean, locked: boolean, onClick: () => void }> = ({ skill, selected, locked, onClick }) => (
+    <div 
+        onClick={() => !locked && onClick()} 
+        className={`flex items-center justify-between p-3 rounded border transition-all ${locked ? 'bg-white/5 border-white/5 opacity-50 cursor-not-allowed' : selected ? 'bg-grim-gold/20 border-grim-gold cursor-pointer' : 'bg-black/40 border-white/10 hover:bg-white/5 cursor-pointer'}`}
+    >
+        <span className={`text-sm font-bold ${selected || locked ? 'text-white' : 'text-grim-muted'}`}>{skill}</span>
+        {locked ? <CheckCircle2 size={16} className="text-grim-muted"/> : selected ? <CheckCircle2 size={16} className="text-grim-gold"/> : <Circle size={16} className="text-grim-border"/>}
+    </div>
+);
+
 export const CharacterModals: React.FC<CharacterModalsProps> = ({
-    modalType, setModalType, characters, char, activeCharId, setActiveCharId, setCharacters,
+    modalType, setModalType, characters, char, activeCharId, setActiveCharId, setCharacters, onSaveNewCharacter,
     selectedFeatureKey, setSelectedFeatureKey, handleImportCharacter
 }) => {
     // --- States locais para Wizard de Criação ---
@@ -83,8 +95,9 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
         );
         
         if (floatingBonuses.length > 0) floatingBonuses.forEach(attr => newChar.attributes[attr] += 1);
-        setCharacters(prev => [...prev, newChar]);
-        setActiveCharId(newChar.id);
+        
+        // Chama a função de salvar no pai (App.tsx)
+        onSaveNewCharacter(newChar);
         setModalType('none');
     };
 
@@ -116,17 +129,6 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
         setSelectedFeatureKey(null);
         setMultiFeatureSelections([]);
     };
-
-    // Componentes Auxiliares
-    const SkillToggle = ({ skill, selected, locked, onClick }: { skill: SkillName, selected: boolean, locked: boolean, onClick: () => void }) => (
-        <div 
-            onClick={() => !locked && onClick()} 
-            className={`flex items-center justify-between p-3 rounded border transition-all ${locked ? 'bg-white/5 border-white/5 opacity-50 cursor-not-allowed' : selected ? 'bg-grim-gold/20 border-grim-gold cursor-pointer' : 'bg-black/40 border-white/10 hover:bg-white/5 cursor-pointer'}`}
-        >
-            <span className={`text-sm font-bold ${selected || locked ? 'text-white' : 'text-grim-muted'}`}>{skill}</span>
-            {locked ? <CheckCircle2 size={16} className="text-grim-muted"/> : selected ? <CheckCircle2 size={16} className="text-grim-gold"/> : <Circle size={16} className="text-grim-border"/>}
-        </div>
-    );
 
     return (
         <>
@@ -390,7 +392,7 @@ export const CharacterModals: React.FC<CharacterModalsProps> = ({
                                     })}
                                 </div>
                                 <div className="text-sm text-grim-muted bg-black/30 px-6 py-2 rounded-full border border-white/5">
-                                    Total de Pontos Gastos: <span className="text-white font-bold">{Object.values(attrScores).reduce((a, b) => a + b, 0)}</span> (Recomendado Point Buy: 27 acima de 8)
+                                    Total de Pontos Gastos: <span className="text-white font-bold">{Object.values(attrScores).reduce((a: number, b: number) => a + b, 0)}</span> (Recomendado Point Buy: 27 acima de 8)
                                 </div>
                             </div>
                         )}

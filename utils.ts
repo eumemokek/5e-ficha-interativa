@@ -205,7 +205,7 @@ export const calculateEncumbrance = (char: Character) => {
     return { current, max };
 };
 
-// ATUALIZADO: Aceita configuração detalhada
+// ATUALIZADO: Removido userId
 export const createNewCharacter = (
     race: string, 
     className: string, 
@@ -213,7 +213,7 @@ export const createNewCharacter = (
     name: string,
     initialAttributes?: Record<Attribute, number>,
     selectedSkills?: SkillName[],
-    selectedFeatures?: Record<string, string> // Mapeia FeatureKey -> OptionName (ex: "Estilo de Luta" -> "Arquearia")
+    selectedFeatures?: Record<string, string>
 ): Character => {
     const raceDef = RACES[race] || RACES['Humano'];
     const classDef = CLASSES[className] || CLASSES['Guerreiro'];
@@ -250,14 +250,15 @@ export const createNewCharacter = (
     });
 
     let character: Character = {
-        id: generateId(), name: name || 'Novo Herói', race, class: className, level: 1, background, alignment: 'Neutro', xp: 0, 
+        id: generateId(), 
+        name: name || 'Novo Herói', race, class: className, level: 1, background, alignment: 'Neutro', xp: 0, 
         attributes, 
         savingThrows: classDef.savingThrows.reduce((acc, attr) => ({ ...acc, [attr]: true }), {} as any), 
         skills, 
         hp: { current: hpBase + conMod, max: hpBase + conMod, temp: 0, hitDice: classDef.hitDie, hitDiceUsed: 0 }, 
         deathSaves: { success: 0, failures: 0 }, 
         inventory: [], spells: [], 
-        features: raceDef.features.map(f => ({ ...f, id: generateId(), source: 'Raça' as const, active: true })), 
+        features: raceDef.features.map(f => ({ ...f, id: generateId(), source: 'Raça' as const, active: true, level: 1 })), // Raça é level 1
         spellSlotsUsed: {}, resourceUsage: {}, currency: { cp: 0, sp: 0, gp: 10 },
         lore: { backstory: '', sessions: [], notes: [], personality: { traits: '', ideals: '', bonds: '', flaws: '' } }
     };
@@ -298,6 +299,11 @@ export const applyFeatureOption = (char: Character, featureKey: string, optionNa
 
     let updatedChar = { ...char };
 
+    // Encontra a feature pai para pegar o nível dela, se existir, senão usa o nível do char
+    const parentFeature = updatedChar.features.find(f => f.name === featureKey);
+    const featureLevel = parentFeature?.level || updatedChar.level;
+    const featureSource = parentFeature?.source || 'Classe';
+
     // Adiciona Sub-Features
     const newFeatures = [...updatedChar.features];
     if (option.featuresAdded) { 
@@ -305,9 +311,10 @@ export const applyFeatureOption = (char: Character, featureKey: string, optionNa
             newFeatures.push({ 
                 ...f, 
                 id: generateId(), 
-                source: 'Classe', 
+                source: featureSource, // Herda a fonte do pai
                 active: true, 
-                origin: featureKey 
+                origin: featureKey,
+                level: featureLevel // Usa o nível correto
             } as Feature); 
         }); 
     }
@@ -345,7 +352,8 @@ export const applyFeatureOption = (char: Character, featureKey: string, optionNa
         newFeatures[idx] = { 
             ...newFeatures[idx], 
             name: `${featureKey}: ${optionName}`, 
-            origin: featureKey 
+            origin: featureKey,
+            level: featureLevel 
         }; 
     }
 
@@ -387,7 +395,7 @@ export const resetFeatureChoice = (char: Character, featureId: string): Characte
             source: feature.source, 
             description: originalDef.description, 
             active: true, 
-            level: originalDef.level 
+            level: originalDef.level || feature.level // Mantém o nível original
         }); 
     }
 
@@ -400,26 +408,41 @@ export const resetFeatureChoice = (char: Character, featureId: string): Characte
     return { ...char, features: newFeatures, spells: newSpells };
 };
 
-export const syncCharacterFeatures = (char: Character): { updatedChar: Character, notifications: string[] } => {
+export const syncCharacterFeatures = (char: Character): { updatedChar: Character, notifications: string[], newFeatures: Feature[] } => {
     const baseClass = char.class.split(' ')[0];
     const classDef = CLASSES[baseClass];
     const notifications: string[] = [];
-    if (!classDef) return { updatedChar: char, notifications };
+    const newFeatures: Feature[] = [];
+    
+    if (!classDef) return { updatedChar: char, notifications, newFeatures };
+    
     const currentFeatures = [...char.features];
+    
     for (let lvl = 1; lvl <= char.level; lvl++) {
         const lvlFeatures = classDef.features[lvl];
         if (lvlFeatures) {
             lvlFeatures.forEach(fDef => {
                 const hasFeature = currentFeatures.some(f => f.name === fDef.name || f.origin === fDef.name || f.name.startsWith(`${fDef.name}:`));
                 if (!hasFeature) {
-                    currentFeatures.push({ id: generateId(), name: fDef.name, source: 'Classe', description: fDef.description, active: true, level: lvl, modifiers: fDef.modifiers });
+                    const newFeature = { 
+                        id: generateId(), 
+                        name: fDef.name, 
+                        source: 'Classe' as const, 
+                        description: fDef.description, 
+                        active: true, 
+                        level: lvl, // GARANTE QUE O NÍVEL SEJA SALVO
+                        modifiers: fDef.modifiers 
+                    };
+                    currentFeatures.push(newFeature);
+                    newFeatures.push(newFeature);
+                    
                     if (FEATURE_OPTIONS[fDef.name]) { notifications.push(`CHOICE:${fDef.name}`); } 
                     else if (fDef.name === 'Incremento no Valor de Habilidade') { notifications.push('ASI'); }
                 }
             });
         }
     }
-    return { updatedChar: { ...char, features: currentFeatures }, notifications };
+    return { updatedChar: { ...char, features: currentFeatures }, notifications, newFeatures };
 };
 
 export const getFeatureOptions = (featureName: string): FeatureDefinition | undefined => {
